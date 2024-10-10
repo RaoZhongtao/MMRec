@@ -13,7 +13,7 @@ from utils.utils import get_local_time
 
 
 # These metrics are typical in topk recommendations
-topk_metrics = {metric.lower(): metric for metric in ['Recall', 'Recall2', 'Precision', 'NDCG', 'MAP']}
+topk_metrics = {metric.lower(): metric for metric in ['Recall', 'Recall2', 'Precision', 'NDCG', 'MAP', 'HitRatio']}
 
 
 class TopKEvaluator(object):
@@ -138,7 +138,10 @@ class TopKEvaluator(object):
         result_list = []
         for metric in self.metrics:
             metric_fuc = metrics_dict[metric.lower()]
-            result = metric_fuc(topk_index, pos_len_list)
+            if metric == "hitratio":
+                result = metric_fuc(topk_index, self.topk)
+            else:
+                result = metric_fuc(topk_index, pos_len_list)
             result_list.append(result)
         return np.stack(result_list, axis=0)
 
