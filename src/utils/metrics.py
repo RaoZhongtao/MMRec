@@ -8,6 +8,30 @@ from logging import getLogger
 
 import numpy as np
 
+def hit_ratio_(pos_index, topk):
+    """
+    Calculate Hit Ratio for each k up to max_k.
+
+    Args:
+        pos_index (np.ndarray): A 2D array with shape (num_users, num_items), where each element is
+                                either 0 (miss) or 1 (hit) indicating whether the top-k item is relevant.
+        max_k (int): The maximum value of k to calculate Hit Ratio for.
+
+    Returns:
+        np.ndarray: An array of Hit Ratio values for each k from 1 to max_k.
+    """
+    max_k = int(topk[-1])
+    hit_ratios = []
+
+    # Iterate over each k from 1 to max_k
+    for k in range(1, max_k + 1):
+        # Check if there's at least one hit among the top-k items for each user
+        hit = np.any(pos_index[:, :k], axis=1).astype(np.float)
+        # Calculate the mean of hits across all users for this k
+        hit_ratio = hit.mean()
+        hit_ratios.append(hit_ratio)
+
+    return np.array(hit_ratios)
 
 def recall_(pos_index, pos_len):
     # Recall: average single users recall ratio.
@@ -115,4 +139,5 @@ metrics_dict = {
     'recall2': recall2_,
     'precision': precision_,
     'map': map_,
+    'hitratio': hit_ratio_
 }
