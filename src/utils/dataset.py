@@ -31,7 +31,8 @@ class RecDataset(object):
         self.uid_field = self.config['USER_ID_FIELD']
         self.iid_field = self.config['ITEM_ID_FIELD']
         self.splitting_label = self.config['inter_splitting_label']
-
+        self.negative_samples  = self.config['negative_sample']
+        self.fixed_negative_samples = self.config['user_specific_sampling']
         if df is not None:
             self.df = df
             return
@@ -41,12 +42,27 @@ class RecDataset(object):
             file_path = os.path.join(self.dataset_path, i)
             if not os.path.isfile(file_path):
                 raise ValueError('File {} not exist'.format(file_path))
-
+        if self.fixed_negative_samples:
+            filePath = os.path.join(self.dataset_path, self.negative_samples)
+            if not os.path.isfile(filePath):
+                raise ValueError('File {} not exist'.format(filePath))
+            self.negativeSamples = self.parse_txt_file_to_dict(filePath)
         # load rating file from data path?
         self.load_inter_graph(config['inter_file_name'])
         self.item_num = int(max(self.df[self.iid_field].values)) + 1
         self.user_num = int(max(self.df[self.uid_field].values)) + 1
 
+    def parse_txt_file_to_dict(self, file_path):
+        data_dict = {}
+        with open(file_path, 'r') as file:
+            for line in file:
+                # 将每行通过空格分割，得到一个列表
+                numbers = list(map(int, line.strip().split()))
+                if numbers:
+                    # 使用第一个数字作为key，剩余部分作为value（列表）
+                    data_dict[numbers[0]] = numbers[1:]
+        return data_dict
+    
     def load_inter_graph(self, file_name):
         inter_file = os.path.join(self.dataset_path, file_name)
         cols = [self.uid_field, self.iid_field, self.splitting_label]

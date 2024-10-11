@@ -4,7 +4,7 @@ use_gpu: True
 seed: [999]
 
 # multi-modal raw features
-data_path: '../data/'
+data_path: '../data/AmazonReview/'
 inter_splitting_label: 'x_label'
 filter_out_cod_start_users: True
 is_multimodal_model: True
@@ -30,6 +30,7 @@ eval_step: 1
 training_neg_sample_num: 1
 use_neg_sampling: True
 use_full_sampling: False
+user_specific_sampling: False
 NEG_PREFIX: neg__
 
 USER_ID_FIELD: user_id:token

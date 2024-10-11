@@ -106,7 +106,7 @@ class TrainDataLoader(AbstractDataLoader):
     """
     General dataloader with negative sampling.
     """
-    def __init__(self, config, dataset, batch_size=1, shuffle=False):
+    def __init__(self, config, dataset, mode='train', batch_size=1, shuffle=False):
         super().__init__(config, dataset, additional_dataset=None,
                          batch_size=batch_size, neg_sampling=True, shuffle=shuffle)
 
