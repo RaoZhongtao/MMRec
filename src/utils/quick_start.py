@@ -16,8 +16,9 @@ import platform
 import os
 
 
-def quick_start(model, dataset, config_dict, save_model=True, mg=False):
+def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train'):
     # merge config dict
+    best_model_path = f"../checkpoints/{model}_{dataset}_best.pth"
     config = Config(model, dataset, config_dict, mg)
     init_logger(config)
     logger = getLogger()
@@ -27,17 +28,17 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
     logger.info(config)
 
     # load data
-    dataset = RecDataset(config)
+    recDataset = RecDataset(config)
     # print dataset statistics
-    logger.info(str(dataset))
+    logger.info(str(recDataset))
 
-    train_dataset, valid_dataset, test_dataset = dataset.split()
+    train_dataset, valid_dataset, test_dataset = recDataset.split()
     logger.info('\n====Training====\n' + str(train_dataset))
     logger.info('\n====Validation====\n' + str(valid_dataset))
     logger.info('\n====Testing====\n' + str(test_dataset))
 
     # wrap into dataloader
-    train_data = TrainDataLoader(config, train_dataset, batch_size=config['train_batch_size'], shuffle=True)
+    train_data = TrainDataLoader(config, train_dataset, mode, batch_size=config['train_batch_size'], shuffle=True)
     (valid_data, test_data) = (
         EvalDataLoader(config, valid_dataset, additional_dataset=train_dataset, batch_size=config['eval_batch_size']),
         EvalDataLoader(config, test_dataset, additional_dataset=train_dataset, batch_size=config['eval_batch_size']))
@@ -77,32 +78,45 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
         # trainer loading and initialization
         trainer = get_trainer()(config, model, mg)
         # debug
+        if mode=='train':
         # model training
-        best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(train_data, valid_data=valid_data, test_data=test_data, saved=save_model)
+            best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(train_data, best_model_path, valid_data=valid_data, test_data=test_data, saved=save_model)
+            hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
+
+            # save best test
+            if best_test_upon_valid[val_metric] > best_test_value:
+                best_test_value = best_test_upon_valid[val_metric]
+                best_test_idx = idx
+            idx += 1
+
+            logger.info('best valid result: {}'.format(dict2str(best_valid_result)))
+            logger.info('test result: {}'.format(dict2str(best_test_upon_valid)))
+            logger.info('████Current BEST████:\nParameters: {}={},\n'
+                        'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
+                hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
         #########
-        hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
-
-        # save best test
-        if best_test_upon_valid[val_metric] > best_test_value:
-            best_test_value = best_test_upon_valid[val_metric]
-            best_test_idx = idx
-        idx += 1
-
-        logger.info('best valid result: {}'.format(dict2str(best_valid_result)))
-        logger.info('test result: {}'.format(dict2str(best_test_upon_valid)))
-        logger.info('████Current BEST████:\nParameters: {}={},\n'
-                    'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
-            hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
+        else:
+            trainer.load_model(ckpt_dir)
+            test_result = trainer.evaluate(test_data, True)
+            hyper_ret.append((hyper_tuple, test_result))
+            logger.info('test result: {}'.format(dict2str(test_result)))
+        
 
     # log info
     logger.info('\n============All Over=====================')
-    for (p, k, v) in hyper_ret:
-        logger.info('Parameters: {}={},\n best valid: {},\n best test: {}'.format(config['hyper_parameters'],
-                                                                                  p, dict2str(k), dict2str(v)))
+    if mode == 'train':
+        for (p, k, v) in hyper_ret:
+            logger.info('Parameters: {}={},\n best valid: {},\n best test: {}'.format(config['hyper_parameters'],
+                                                                                    p, dict2str(k), dict2str(v)))
 
-    logger.info('\n\n█████████████ BEST ████████████████')
-    logger.info('\tParameters: {}={},\nValid: {},\nTest: {}\n\n'.format(config['hyper_parameters'],
+        logger.info('\n\n█████████████ BEST ████████████████')
+        logger.info('\tParameters: {}={},\nValid: {},\nTest: {}\n\n'.format(config['hyper_parameters'],
                                                                    hyper_ret[best_test_idx][0],
                                                                    dict2str(hyper_ret[best_test_idx][1]),
                                                                    dict2str(hyper_ret[best_test_idx][2])))
+    else:
+        for (params, test) in hyper_ret:
+            logger.info('Parameters: {}={},\n Test: {},\n best test: {}'.format(config['hyper_parameters'],
+                                                                                    params, dict2str(test)))
+        logger.info('\n\n█████████████ Test ████████████████')
 

@@ -107,7 +107,16 @@ class Trainer(AbstractTrainer):
         self.alpha1 = config['alpha1']
         self.alpha2 = config['alpha2']
         self.beta = config['beta']
+        
+    def load_model(self, model_path):
+        r"""Load the trained model weights.
 
+        Args:
+            model_path (str): The path of the trained model weights.
+        """
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.logger.info(f"Loaded model weights from {model_path}")
+    
     def _build_optimizer(self):
         r"""Init the Optimizer
 
@@ -220,7 +229,7 @@ class Trainer(AbstractTrainer):
             train_loss_output += 'train loss: %.4f' % losses
         return train_loss_output + ']'
 
-    def fit(self, train_data, valid_data=None, test_data=None, saved=False, verbose=True):
+    def fit(self, train_data, best_checkpoint_path, valid_data=None, test_data=None, saved=False, verbose=True):
         r"""Train the model based on the train data and the valid data.
 
         Args:
@@ -279,6 +288,11 @@ class Trainer(AbstractTrainer):
                         self.logger.info(update_output)
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
+                    # Save the best model checkpoint
+                    if saved:
+                        torch.save(self.model.state_dict(), best_checkpoint_path)
+                        if verbose:
+                            self.logger.info(f"Model checkpoint saved at {best_checkpoint_path}")
 
                 if stop_flag:
                     stop_output = '+++++Finished training, best eval result in epoch %d' % \
