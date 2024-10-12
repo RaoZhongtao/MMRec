@@ -218,4 +218,27 @@ class FREEDOM(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+    
+    def fixed_samples_sort_predict(self, interaction):
+        
+        user_tensor, item_tensor = self.forward(self.norm_adj)
+        
+        # 本batch内的userIDs
+        users = interaction[0]
+        userCount = len(users)
+        # 本batch内的user embeddings
+        current_user_tensor = user_tensor[users, :]
+        # 负样本，size为 len(users) * 30
+        neg_items = interaction[2]
 
+        score_matrix = torch.full((len(users), item_tensor.size(0)), -1e10).to(self.device)
+        
+        for i in range(userCount):
+            user_embedding = current_user_tensor[i]  # 第 i 个 userID embedding
+            neg_item_ids = neg_items[i]              # 第 i 个 userID 对应的 30 个负样本 item IDs
+            neg_item_embeddings = item_tensor[neg_item_ids]  # 取出对应的 item embeddings
+            # 计算 user_embedding 与每个负样本 item embedding 的内积
+            scores = torch.matmul(neg_item_embeddings, user_embedding)
+            # 将结果填入 matrix[i][neg_item_ids] 中
+            score_matrix[i, neg_item_ids] = scores.to(self.device)
+        return score_matrix

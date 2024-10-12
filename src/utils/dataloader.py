@@ -39,7 +39,7 @@ class AbstractDataLoader(object):
         self.config = config
         self.logger = getLogger()
         self.dataset = dataset
-        self.dataset_bk = self.dataset.copy(self.dataset.df)
+        self.dataset_bk = self.dataset.copy(self.dataset.df, self.dataset.negativeSamples)
         # if config['model_type'] == ModelType.GENERAL:
         #     self.dataset.df.drop(self.dataset.ts_id, inplace=True, axis=1)
         # elif config['model_type'] == ModelType.SEQUENTIAL:
@@ -144,7 +144,7 @@ class TrainDataLoader(AbstractDataLoader):
         """
         # sort & random
         if self.shuffle:
-            self.dataset = self.dataset_bk.copy(self.dataset_bk.df)
+            self.dataset = self.dataset_bk.copy(self.dataset_bk.df, self.dataset_bk.negativeSamples)
         self.all_items.sort()
         if self.use_full_sampling:
             self.all_uids.sort()
@@ -348,6 +348,11 @@ class EvalDataLoader(AbstractDataLoader):
         self._get_eval_items_per_u(self.eval_u)
         # to device
         self.eval_u = torch.tensor(self.eval_u).type(torch.LongTensor).to(self.device)
+        use_fixed_neg = self.config['user_fixed_negative_sampling']
+        if use_fixed_neg:
+            self.sample_func = self._get_fixed_neg_sample
+        else:
+            self.sample_func = self._get_full_sample
 
     @property
     def pr_end(self):
@@ -357,15 +362,7 @@ class EvalDataLoader(AbstractDataLoader):
         self.dataset.shuffle()
 
     def _next_batch_data(self):
-        inter_cnt = sum(self.train_pos_len_list[self.pr: self.pr+self.step])
-        batch_users = self.eval_u[self.pr: self.pr + self.step]
-        batch_mask_matrix = self.pos_items_per_u[:, self.inter_pr: self.inter_pr+inter_cnt].clone()
-        # user_ids to index
-        batch_mask_matrix[0] -= self.pr
-        self.inter_pr += inter_cnt
-        self.pr += self.step
-
-        return [batch_users, batch_mask_matrix]
+        return self.sample_func()
 
     def _get_pos_items_per_u(self, eval_users):
         """
@@ -414,5 +411,43 @@ class EvalDataLoader(AbstractDataLoader):
 
     def get_eval_users(self):
         return self.eval_u.cpu()
+    
+    def _get_fixed_neg_sample(self):
+        # 获取当前批次的用户ID
+        inter_cnt = sum(self.train_pos_len_list[self.pr: self.pr+self.step])
+        batch_users = self.eval_u[self.pr: self.pr + self.step]
+        batch_mask_matrix = self.pos_items_per_u[:, self.inter_pr: self.inter_pr+inter_cnt].clone()
+        batch_mask_matrix[0] -= self.pr
+        # 为每个用户生成负采样项
+        neg_items_list = []
+        number_neg_samples = self.config['neg_num']
+        # print(f'\033[91m debugging _get_fixed_neg_sample self.dataset.df.head {self.dataset.df.head()} \033[0m')
+        
+        for user_id in batch_users:
+            neg_items = self.dataset.negativeSamples[user_id.item()]
+            neg_items = neg_items[:number_neg_samples]
+        # 取前29个负样本
+            groundTrueItemId = self.dataset.df[self.dataset.iid_field].iloc[user_id.item()]
+            neg_items.append(groundTrueItemId)
+            neg_items_list.append(neg_items)
+            
+        # 更新指针
+        self.pr += self.step
+        self.inter_pr += inter_cnt
+        # print(f'\033[91m debugging _get_fixed_neg_sample self.dataset.negativeSamples {self.dataset.negativeSamples} \033[0m')
+        return [batch_users, batch_mask_matrix, neg_items_list]
+    
+    def _get_full_sample(self):
+        # print(f'\033[91m debugging _get_full_sample self.dataset.df.head {self.dataset.df.head()} \033[0m')
+        
+            
+        inter_cnt = sum(self.train_pos_len_list[self.pr: self.pr+self.step])
+        batch_users = self.eval_u[self.pr: self.pr + self.step]
+        batch_mask_matrix = self.pos_items_per_u[:, self.inter_pr: self.inter_pr+inter_cnt].clone()
+        # user_ids to index
+        batch_mask_matrix[0] -= self.pr
+        self.inter_pr += inter_cnt
+        self.pr += self.step
+        return [batch_users, batch_mask_matrix]
 
 

@@ -1,7 +1,7 @@
 CUDA_VISIBLE_DEVICES=1 nohup python main.py \
 --model MMGCN \
 --dataset beauty \
---mode train > train_mmgcn_beauty.log 2>&1 &
+--mode train > train_mmgcn_beauty_fixed_neg.log 2>&1 &
 
 CUDA_VISIBLE_DEVICES=2 nohup python main.py \
 --model MMGCN \

@@ -1,5 +1,5 @@
 # general
-gpu_id: 0
+gpu_id: 1
 use_gpu: True
 seed: [999]
 
@@ -30,7 +30,10 @@ eval_step: 1
 training_neg_sample_num: 1
 use_neg_sampling: True
 use_full_sampling: False
-user_specific_sampling: False
+user_fixed_negative_sampling: False
+neg_num: 29
+use_400_samples: True
+samples_400_file: 'sampled_400.txt'
 NEG_PREFIX: neg__
 
 USER_ID_FIELD: user_id:token

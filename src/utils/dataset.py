@@ -19,7 +19,7 @@ import lmdb
 
 
 class RecDataset(object):
-    def __init__(self, config, df=None):
+    def __init__(self, config, df=None, negativeSamples=None):
         self.config = config
         self.logger = getLogger()
 
@@ -32,9 +32,11 @@ class RecDataset(object):
         self.iid_field = self.config['ITEM_ID_FIELD']
         self.splitting_label = self.config['inter_splitting_label']
         self.negative_samples  = self.config['negative_sample']
-        self.fixed_negative_samples = self.config['user_specific_sampling']
+        self.user_fixed_negative_sampling = self.config['user_fixed_negative_sampling']
+        self.negativeSamples = {}
         if df is not None:
             self.df = df
+            self.negativeSamples = negativeSamples
             return
         # if all files exists
         check_file_list = [self.config['inter_file_name']]
@@ -42,15 +44,29 @@ class RecDataset(object):
             file_path = os.path.join(self.dataset_path, i)
             if not os.path.isfile(file_path):
                 raise ValueError('File {} not exist'.format(file_path))
-        if self.fixed_negative_samples:
+        if self.user_fixed_negative_sampling:
             filePath = os.path.join(self.dataset_path, self.negative_samples)
             if not os.path.isfile(filePath):
                 raise ValueError('File {} not exist'.format(filePath))
             self.negativeSamples = self.parse_txt_file_to_dict(filePath)
+        
+        if self.config['use_400_samples']:
+            filePath = os.path.join(self.dataset_path, self.config['samples_400_file'])
+            if not os.path.isfile(filePath):
+                raise ValueError('File {} not exist'.format(filePath))
+            self.samples400UserID = self.parse_txt_file_to_list(filePath)
+        
         # load rating file from data path?
         self.load_inter_graph(config['inter_file_name'])
         self.item_num = int(max(self.df[self.iid_field].values)) + 1
         self.user_num = int(max(self.df[self.uid_field].values)) + 1
+
+    def parse_txt_file_to_list(self, file_path):
+        userIDs = []
+        with open(file_path, 'r') as file:
+            for line in file:
+                userIDs.append(int(line.strip()))
+        return userIDs
 
     def parse_txt_file_to_dict(self, file_path):
         data_dict = {}
@@ -58,6 +74,7 @@ class RecDataset(object):
             for line in file:
                 # 将每行通过空格分割，得到一个列表
                 numbers = list(map(int, line.strip().split()))
+                numbers = (np.array(numbers)-1).tolist()
                 if numbers:
                     # 使用第一个数字作为key，剩余部分作为value（列表）
                     data_dict[numbers[0]] = numbers[1:]
@@ -76,7 +93,11 @@ class RecDataset(object):
         for i in range(3):
             temp_df = self.df[self.df[self.splitting_label] == i].copy()
             temp_df.drop(self.splitting_label, inplace=True, axis=1)        # no use again
+            if i == 2 and self.config['use_400_samples']:
+                temp_df = temp_df[temp_df[self.uid_field].isin(self.samples400UserID)]
+                print(f"debugging 400 samples temp_df : {temp_df}")
             dfs.append(temp_df)
+            
         if self.config['filter_out_cod_start_users']:
             # filtering out new users in val/test sets
             train_u = set(dfs[0][self.uid_field].values)
@@ -86,10 +107,10 @@ class RecDataset(object):
                 dfs[i].drop(dfs[i].index[dropped_inter], inplace=True)
 
         # wrap as RecDataset
-        full_ds = [self.copy(_) for _ in dfs]
+        full_ds = [self.copy(df, self.negativeSamples.copy()) for df in dfs]
         return full_ds
 
-    def copy(self, new_df):
+    def copy(self, new_df, negativeSamples):
         """Given a new interaction feature, return a new :class:`Dataset` object,
                 whose interaction feature is updated with ``new_df``, and all the other attributes the same.
 
@@ -99,7 +120,7 @@ class RecDataset(object):
                 Returns:
                     :class:`~Dataset`: the new :class:`~Dataset` object, whose interaction feature has been updated.
                 """
-        nxt = RecDataset(self.config, new_df)
+        nxt = RecDataset(self.config, new_df, negativeSamples)
 
         nxt.item_num = self.item_num
         nxt.user_num = self.user_num
