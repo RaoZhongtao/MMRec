@@ -11,6 +11,8 @@ import os
 import argparse
 from utils.quick_start import quick_start
 os.environ['NUMEXPR_MAX_THREADS'] = '48'
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
 
 
 if __name__ == '__main__':
@@ -22,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default='train', choices=['train', 'test'], type=str)
     
     config_dict = {
-        'gpu_id': 0,
+        'gpu_id': 1,
     }
 
     args, _ = parser.parse_known_args()

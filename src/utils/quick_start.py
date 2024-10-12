@@ -18,7 +18,7 @@ import os
 
 def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train'):
     # merge config dict
-    best_model_path = f"../checkpoints/{model}_{dataset}_best.pth"
+    best_model_path = f"../checkpoints/debug/{model}_{dataset}_best.pth"
     config = Config(model, dataset, config_dict, mg)
     init_logger(config)
     logger = getLogger()
@@ -51,35 +51,36 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
 
     logger.info('\n\n=================================\n\n')
 
-    # hyper-parameters
-    hyper_ls = []
-    if "seed" not in config['hyper_parameters']:
-        config['hyper_parameters'] = ['seed'] + config['hyper_parameters']
-    for i in config['hyper_parameters']:
-        hyper_ls.append(config[i] or [None])
-    # combinations
-    combinators = list(product(*hyper_ls))
-    total_loops = len(combinators)
-    for hyper_tuple in combinators:
-        # random seed reset
-        for j, k in zip(config['hyper_parameters'], hyper_tuple):
-            config[j] = k
-        init_seed(config['seed'])
+    if mode=='train':
+        # hyper-parameters
+        hyper_ls = []
+        if "seed" not in config['hyper_parameters']:
+            config['hyper_parameters'] = ['seed'] + config['hyper_parameters']
+        for i in config['hyper_parameters']:
+            hyper_ls.append(config[i] or [None])
+        # combinations
+        combinators = list(product(*hyper_ls))
+        total_loops = len(combinators)
+        for hyper_tuple in combinators:
+            # random seed reset
+            for j, k in zip(config['hyper_parameters'], hyper_tuple):
+                config[j] = k
+            init_seed(config['seed'])
 
-        logger.info('========={}/{}: Parameters:{}={}======='.format(
-            idx+1, total_loops, config['hyper_parameters'], hyper_tuple))
+            logger.info('========={}/{}: Parameters:{}={}======='.format(
+                idx+1, total_loops, config['hyper_parameters'], hyper_tuple))
 
-        # set random state of dataloader
-        train_data.pretrain_setup()
-        # model loading and initialization
-        model = get_model(config['model'])(config, train_data).to(config['device'])
-        logger.info(model)
+            # set random state of dataloader
+            train_data.pretrain_setup()
+            # model loading and initialization
+            model = get_model(config['model'])(config, train_data).to(config['device'])
+            logger.info(model)
 
-        # trainer loading and initialization
-        trainer = get_trainer()(config, model, mg)
-        # debug
-        if mode=='train':
-        # model training
+            # trainer loading and initialization
+            trainer = get_trainer()(config, model, mg)
+            # debug
+            
+            # model training
             best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(train_data, best_model_path, valid_data=valid_data, test_data=test_data, saved=save_model)
             hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
 
@@ -94,13 +95,13 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
             logger.info('████Current BEST████:\nParameters: {}={},\n'
                         'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
                 hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
-        #########
-        else:
-            trainer.load_model(ckpt_dir)
-            test_result = trainer.evaluate(test_data, True)
-            hyper_ret.append((hyper_tuple, test_result))
-            logger.info('test result: {}'.format(dict2str(test_result)))
-        
+            #########
+    else:
+        model = get_model(config['model'])(config, train_data).to(config['device'])
+        trainer = get_trainer()(config, model, mg)
+        trainer.load_model(ckpt_dir)
+        test_result = trainer.evaluate(test_data, True)
+        logger.info('test result: {}'.format(dict2str(test_result)))
 
     # log info
     logger.info('\n============All Over=====================')
