@@ -84,6 +84,8 @@ class RecDataset(object):
         inter_file = os.path.join(self.dataset_path, file_name)
         cols = [self.uid_field, self.iid_field, self.splitting_label]
         self.df = pd.read_csv(inter_file, usecols=cols, sep=self.config['field_separator'])
+        print(f"debugging Recdataset self.df: ")
+        print(self.df.head())
         if not self.df.columns.isin(cols).all():
             raise ValueError('File {} lost some required columns.'.format(inter_file))
 

@@ -150,6 +150,8 @@ class Trainer(AbstractTrainer):
             multiple parts and the model return these multiple parts loss instead of the sum of loss, It will return a
             tuple which includes the sum of loss in each part.
         """
+        
+        
         if not self.req_training:
             return 0.0, []
         self.model.train()
@@ -158,6 +160,7 @@ class Trainer(AbstractTrainer):
         loss_batches = []
         for batch_idx, interaction in enumerate(train_data):
             self.optimizer.zero_grad()
+            print(f"\033[91m  debugging  train_epoch batch_idx: {batch_idx} interaction.shape: {interaction.shape} interaction: {interaction}\033[0m]]")
             second_inter = interaction.clone()
             losses = loss_func(interaction)
             
@@ -221,8 +224,8 @@ class Trainer(AbstractTrainer):
             #raise ValueError('Training loss is nan')
             return True
 
-    def _generate_train_loss_output(self, epoch_idx, s_time, e_time, losses):
-        train_loss_output = 'epoch %d training [time: %.2fs, ' % (epoch_idx, e_time - s_time)
+    def _generate_train_loss_output(self, epoch_idx, a_time, s_time, e_time, losses):
+        train_loss_output = 'epoch %d training [epoch_time: %.2fs, average_time: %.2fs, ' % (epoch_idx, e_time - s_time, a_time / (epoch_idx + 1))
         if isinstance(losses, tuple):
             train_loss_output = ', '.join('train_loss%d: %.4f' % (idx + 1, loss) for idx, loss in enumerate(losses))
         else:
@@ -243,9 +246,11 @@ class Trainer(AbstractTrainer):
         Returns:
              (float, dict): best valid score and best valid result. If valid_data is None, it returns (-1, None)
         """
+        train_accumulated_time = 0.0
+        val_accumulated_time = 0.0
         for epoch_idx in range(self.start_epoch, self.epochs):
             # train
-            training_start_time = time()
+            epoch_training_start_time = time()
             self.model.pre_epoch_processing()
             train_loss, _ = self._train_epoch(train_data, epoch_idx)
             if torch.is_tensor(train_loss):
@@ -257,8 +262,9 @@ class Trainer(AbstractTrainer):
 
             self.train_loss_dict[epoch_idx] = sum(train_loss) if isinstance(train_loss, tuple) else train_loss
             training_end_time = time()
+            train_accumulated_time += training_end_time - epoch_training_start_time
             train_loss_output = \
-                self._generate_train_loss_output(epoch_idx, training_start_time, training_end_time, train_loss)
+                self._generate_train_loss_output(epoch_idx, train_accumulated_time, epoch_training_start_time, training_end_time, train_loss)
             post_info = self.model.post_epoch_processing()
             if verbose:
                 self.logger.info(train_loss_output)
@@ -268,15 +274,21 @@ class Trainer(AbstractTrainer):
             # eval: To ensure the test result is the best model under validation data, set self.eval_step == 1
             if (epoch_idx + 1) % self.eval_step == 0:
                 valid_start_time = time()
+                numberOfUserToVal = len(valid_data.eval_u)
                 valid_score, valid_result = self._valid_epoch(valid_data)
                 self.best_valid_score, self.cur_step, stop_flag, update_flag = early_stopping(
                     valid_score, self.best_valid_score, self.cur_step,
                     max_step=self.stopping_step, bigger=self.valid_metric_bigger)
                 valid_end_time = time()
-                valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f]" % \
-                                     (epoch_idx, valid_end_time - valid_start_time, valid_score)
+                
+                val_time_each_user = (valid_end_time - valid_start_time) / numberOfUserToVal
+                val_accumulated_time += val_time_each_user
+                print(f"\033[91m  debugging  numberOfUserToVal {numberOfUserToVal} \033[0m]]")
+                valid_score_output = "epoch %d evaluating %d users [time: %.2fs, time_each_user: %.7fs, avg_time_each_user: %.7fs, valid_score: %f]" % \
+                                     (epoch_idx, numberOfUserToVal, valid_end_time - valid_start_time, val_time_each_user, val_accumulated_time / (epoch_idx + 1), valid_score)
                 valid_result_output = 'valid result: \n' + dict2str(valid_result)
                 # test
+                
                 _, test_result = self._valid_epoch(test_data)
                 if verbose:
                     self.logger.info(valid_score_output)
@@ -310,12 +322,15 @@ class Trainer(AbstractTrainer):
             dict: eval result, key is the eval metric and value in the corresponding metric value
         """
         self.model.eval()
-
+        user_fixed_negative_sampling = self.config['user_fixed_negative_sampling']
         # batch full users
         batch_matrix_list = []
         for batch_idx, batched_data in enumerate(eval_data):
             # predict: interaction without item ids
-            scores = self.model.full_sort_predict(batched_data)
+            if user_fixed_negative_sampling:
+                scores = self.model.fixed_samples_sort_predict(batched_data)
+            else:
+                scores = self.model.full_sort_predict(batched_data)
             masked_items = batched_data[1]
             # mask out pos items
             scores[masked_items[0], masked_items[1]] = -1e10

@@ -427,14 +427,14 @@ class EvalDataLoader(AbstractDataLoader):
             neg_items = self.dataset.negativeSamples[user_id.item()]
             neg_items = neg_items[:number_neg_samples]
         # 取前29个负样本
-            groundTrueItemId = self.dataset.df[self.dataset.iid_field].iloc[user_id.item()]
+            groundTrueItemId = self.dataset.df[self.dataset.df[self.dataset.uid_field] == user_id.item()][self.dataset.iid_field].iloc[0]
             neg_items.append(groundTrueItemId)
             neg_items_list.append(neg_items)
             
         # 更新指针
         self.pr += self.step
         self.inter_pr += inter_cnt
-        # print(f'\033[91m debugging _get_fixed_neg_sample self.dataset.negativeSamples {self.dataset.negativeSamples} \033[0m')
+        
         return [batch_users, batch_mask_matrix, neg_items_list]
     
     def _get_full_sample(self):
@@ -448,6 +448,8 @@ class EvalDataLoader(AbstractDataLoader):
         batch_mask_matrix[0] -= self.pr
         self.inter_pr += inter_cnt
         self.pr += self.step
+        print(f'\033[91m debugging _get_fixed_neg_sample batch_users.shape {batch_users.shape} batch_users {batch_users} batch_mask_matrix {batch_mask_matrix}  \033[0m')
+        print(f'\033[91m debugging _get_fixed_neg_sample batch_mask_matrix.shape {batch_mask_matrix.shape} batch_mask_matrix {batch_mask_matrix}  \033[0m')
         return [batch_users, batch_mask_matrix]
 
 

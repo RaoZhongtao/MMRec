@@ -25,7 +25,7 @@ def get_local_time():
     return cur
 
 
-def get_model(model_name):
+def get_model(model_name, initialize = True):
     r"""Automatically select model class based on model name
     Args:
         model_name (str): model name

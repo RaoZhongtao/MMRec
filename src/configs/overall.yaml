@@ -32,7 +32,7 @@ use_neg_sampling: True
 use_full_sampling: False
 user_fixed_negative_sampling: False
 neg_num: 29
-use_400_samples: True
+use_400_samples: False
 samples_400_file: 'sampled_400.txt'
 NEG_PREFIX: neg__
 
@@ -46,7 +46,7 @@ field_separator: "\t"
 metrics: ["Recall", "NDCG", "Precision", "MAP", "HitRatio"]
 topk: [1, 5, 10, 20]
 valid_metric: Recall@20
-eval_batch_size: 4096
+eval_batch_size: 64
 
 #
 use_raw_features: False

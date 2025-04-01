@@ -38,7 +38,7 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
     logger.info('\n====Testing====\n' + str(test_dataset))
 
     # wrap into dataloader
-    train_data = TrainDataLoader(config, train_dataset, mode, batch_size=config['train_batch_size'], shuffle=True)
+    train_data = TrainDataLoader(config, train_dataset, mode, batch_size=config['train_batch_size'], shuffle=False)
     (valid_data, test_data) = (
         EvalDataLoader(config, valid_dataset, additional_dataset=train_dataset, batch_size=config['eval_batch_size']),
         EvalDataLoader(config, test_dataset, additional_dataset=train_dataset, batch_size=config['eval_batch_size']))
