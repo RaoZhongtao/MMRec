@@ -1,7 +1,7 @@
 CUDA_VISIBLE_DEVICES=1 nohup python main.py \
 --model BM3 \
 --dataset beauty \
---mode train > train_BM3_beauty.log 2>&1 &
+--mode train > test_time_train_BM3_beauty.log 2>&1 &
 
 CUDA_VISIBLE_DEVICES=2 python main.py \
 --model BM3 \

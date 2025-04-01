@@ -55,6 +55,7 @@ class MMGCN(GeneralRecommender):
 
         self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x), requires_grad=True)).to(self.device)
         self.result = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x))).to(self.device)
+        print(f"debugging MMGCN result in init: {self.result}")
 
     def pack_edge_index(self, inter_mat):
         rows = inter_mat.row
@@ -98,9 +99,12 @@ class MMGCN(GeneralRecommender):
         return loss + reg_loss
 
     def full_sort_predict(self, interaction):
+        self.forward()
+        
+        print(f"\033[91m debugging mmgcn full_sort_predict self.result {self.result}")
         user_tensor = self.result[:self.n_users]
         item_tensor = self.result[self.n_users:]
-        print(f"\033[91m debugging mmgcn full_sort_predict numberOfUser {self.n_users}")
+        
         temp_user_tensor = user_tensor[interaction[0], :]
         score_matrix = torch.matmul(temp_user_tensor, item_tensor.t())
         return score_matrix
@@ -108,6 +112,7 @@ class MMGCN(GeneralRecommender):
     def fixed_samples_sort_predict(self, interaction):
         # 处理固定的负采样数据
         # 全量的user、item embedings
+        self.forward()
         user_tensor = self.result[:self.n_users]
         item_tensor = self.result[self.n_users:]
         
