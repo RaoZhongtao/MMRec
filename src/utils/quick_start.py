@@ -18,7 +18,7 @@ import os
 
 def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train'):
     # merge config dict
-    best_model_path = f"../checkpoints/debug/{model}_{dataset}_best.pth"
+    best_model_path = f"../checkpoints/{model}_{dataset}_best.pth"
     config = Config(model, dataset, config_dict, mg)
     init_logger(config)
     logger = getLogger()

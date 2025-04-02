@@ -74,7 +74,7 @@ class RecDataset(object):
             for line in file:
                 # 将每行通过空格分割，得到一个列表
                 numbers = list(map(int, line.strip().split()))
-                numbers = (np.array(numbers)-1).tolist()
+                numbers = np.array(numbers).tolist()
                 if numbers:
                     # 使用第一个数字作为key，剩余部分作为value（列表）
                     data_dict[numbers[0]] = numbers[1:]
@@ -84,7 +84,7 @@ class RecDataset(object):
         inter_file = os.path.join(self.dataset_path, file_name)
         cols = [self.uid_field, self.iid_field, self.splitting_label]
         self.df = pd.read_csv(inter_file, usecols=cols, sep=self.config['field_separator'])
-        print(f"debugging Recdataset self.df: ")
+        # print(f"debugging Recdataset self.df: ")
         print(self.df.head())
         if not self.df.columns.isin(cols).all():
             raise ValueError('File {} lost some required columns.'.format(inter_file))
@@ -97,7 +97,7 @@ class RecDataset(object):
             temp_df.drop(self.splitting_label, inplace=True, axis=1)        # no use again
             if i == 2 and self.config['use_400_samples']:
                 temp_df = temp_df[temp_df[self.uid_field].isin(self.samples400UserID)]
-                print(f"debugging 400 samples temp_df : {temp_df}")
+                # print(f"debugging 400 samples temp_df : {temp_df}")
             dfs.append(temp_df)
             
         if self.config['filter_out_cod_start_users']:

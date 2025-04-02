@@ -4,7 +4,11 @@ __pycache__/
 *$py.class
 
 /data/baby/
-
+/data/beauty/
+/data/sports/
+/data/toys/
+/checkpoints/
+/data/old_dataset/
 # C extensions
 *.so
 

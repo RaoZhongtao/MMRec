@@ -448,8 +448,8 @@ class EvalDataLoader(AbstractDataLoader):
         batch_mask_matrix[0] -= self.pr
         self.inter_pr += inter_cnt
         self.pr += self.step
-        print(f'\033[91m debugging _get_fixed_neg_sample batch_users.shape {batch_users.shape} batch_users {batch_users} batch_mask_matrix {batch_mask_matrix}  \033[0m')
-        print(f'\033[91m debugging _get_fixed_neg_sample batch_mask_matrix.shape {batch_mask_matrix.shape} batch_mask_matrix {batch_mask_matrix}  \033[0m')
+        # print(f'\033[91m debugging _get_fixed_neg_sample batch_users.shape {batch_users.shape} batch_users {batch_users} batch_mask_matrix {batch_mask_matrix}  \033[0m')
+        # print(f'\033[91m debugging _get_fixed_neg_sample batch_mask_matrix.shape {batch_mask_matrix.shape} batch_mask_matrix {batch_mask_matrix}  \033[0m')
         return [batch_users, batch_mask_matrix]
 
 

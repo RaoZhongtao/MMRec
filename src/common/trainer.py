@@ -160,7 +160,7 @@ class Trainer(AbstractTrainer):
         loss_batches = []
         for batch_idx, interaction in enumerate(train_data):
             self.optimizer.zero_grad()
-            print(f"\033[91m  debugging  train_epoch batch_idx: {batch_idx} interaction.shape: {interaction.shape} interaction: {interaction}\033[0m]]")
+            # print(f"\033[91m  debugging  train_epoch batch_idx: {batch_idx} interaction.shape: {interaction.shape} interaction: {interaction}\033[0m]]")
             second_inter = interaction.clone()
             losses = loss_func(interaction)
             
@@ -283,7 +283,7 @@ class Trainer(AbstractTrainer):
                 
                 val_time_each_user = (valid_end_time - valid_start_time) / numberOfUserToVal
                 val_accumulated_time += val_time_each_user
-                print(f"\033[91m  debugging  numberOfUserToVal {numberOfUserToVal} \033[0m]]")
+                # print(f"\033[91m  debugging  numberOfUserToVal {numberOfUserToVal} \033[0m]]")
                 valid_score_output = "epoch %d evaluating %d users [time: %.2fs, time_each_user: %.7fs, avg_time_each_user: %.7fs, valid_score: %f]" % \
                                      (epoch_idx, numberOfUserToVal, valid_end_time - valid_start_time, val_time_each_user, val_accumulated_time / (epoch_idx + 1), valid_score)
                 valid_result_output = 'valid result: \n' + dict2str(valid_result)

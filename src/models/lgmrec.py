@@ -193,11 +193,45 @@ class LGMRec(GeneralRecommender):
 
         return loss
 
+
+
+
     def full_sort_predict(self, interaction):
         user = interaction[0]
         user_embs, item_embs, _ = self.forward()
         scores = torch.matmul(user_embs[user], item_embs.T)
         return scores
+    
+    def fixed_samples_sort_predict(self, interaction):
+        # 获取用户和物品的嵌入
+        user_embs, item_embs, _ = self.forward()
+        
+        # 取出 batch 内的用户 IDs
+        user = interaction[0]
+        userCount = len(user)
+        
+        # 取出 batch 内的负样本 IDs (size: len(users) * 30)
+        neg_items = interaction[2]
+        
+        # 获取当前 batch 用户的嵌入
+        current_user_embs = user_embs[user]
+        
+        # 初始化评分矩阵，默认值设为很小 (-1e10) 以忽略未选取的物品
+        score_matrix = torch.full((userCount, item_embs.size(0)), -1e10, device=self.device)
+        
+        # 计算每个用户与其负样本的得分
+        for i in range(userCount):
+            user_embedding = current_user_embs[i]  # 取当前用户的嵌入
+            neg_item_ids = neg_items[i]  # 取当前用户的负样本 item IDs
+            neg_item_embs = item_embs[neg_item_ids]  # 取负样本的嵌入
+            
+            # 计算点积得分
+            scores = torch.matmul(neg_item_embs, user_embedding)
+            
+            # 填充评分矩阵
+            score_matrix[i, neg_item_ids] = scores
+        
+        return score_matrix
 
 class HGNNLayer(nn.Module):
     def __init__(self, n_hyper_layer):

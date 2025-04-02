@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default='train', choices=['train', 'test'], type=str)
     
     config_dict = {
-        'gpu_id': 1,
+        'gpu_id': 0,
     }
 
     args, _ = parser.parse_known_args()
