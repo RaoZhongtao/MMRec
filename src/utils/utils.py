@@ -11,6 +11,7 @@ import torch
 import importlib
 import datetime
 import random
+from typing import Optional
 
 
 def get_local_time():
@@ -137,7 +138,7 @@ def build_sim(context):
     return sim
 
 def get_sparse_laplacian(edge_index, edge_weight, num_nodes, normalization='none'):
-    from torch_scatter import scatter_add
+    # from torch_scatter import scatter_add
     row, col = edge_index[0], edge_index[1]
     deg = scatter_add(edge_weight, row, dim=0, dim_size=num_nodes)
 
@@ -182,3 +183,43 @@ def build_knn_normalized_graph(adj, topk, is_sparse, norm_type):
     else:
         weighted_adjacency_matrix = (torch.zeros_like(adj)).scatter_(-1, knn_ind, knn_val)
         return get_dense_laplacian(weighted_adjacency_matrix, normalization=norm_type)
+    
+#torch_scatter.py
+
+
+ 
+def scatter_sum(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
+                out: Optional[torch.Tensor] = None,
+                dim_size: Optional[int] = None) -> torch.Tensor:
+    index = broadcast(index, src, dim)
+    if out is None:
+        size = list(src.size())
+        if dim_size is not None:
+            size[dim] = dim_size
+        elif index.numel() == 0:
+            size[dim] = 0
+        else:
+            size[dim] = int(index.max()) + 1
+        out = torch.zeros(size, dtype=src.dtype, device=src.device)
+        return out.scatter_add_(dim, index, src)
+    else:
+        return out.scatter_add_(dim, index, src)
+ 
+ 
+def scatter_add(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
+                out: Optional[torch.Tensor] = None,
+                dim_size: Optional[int] = None) -> torch.Tensor:
+    return scatter_sum(src, index, dim, out, dim_size)
+    
+    
+    
+def broadcast(src: torch.Tensor, other: torch.Tensor, dim: int):
+    if dim < 0:
+        dim = other.dim() + dim
+    if src.dim() == 1:
+        for _ in range(0, dim):
+            src = src.unsqueeze(0)
+    for _ in range(src.dim(), other.dim()):
+        src = src.unsqueeze(-1)
+    src = src.expand(other.size())
+    return src

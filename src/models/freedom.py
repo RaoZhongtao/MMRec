@@ -65,16 +65,17 @@ class FREEDOM(GeneralRecommender):
             self.mm_adj = torch.load(mm_adj_file)
         else:
             if self.v_feat is not None:
-                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach())
+                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach().cpu())
                 self.mm_adj = image_adj
             if self.t_feat is not None:
-                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach())
+                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach().cpu())
                 self.mm_adj = text_adj
             if self.v_feat is not None and self.t_feat is not None:
                 self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
                 del text_adj
                 del image_adj
             torch.save(self.mm_adj, mm_adj_file)
+        self.mm_adj = self.mm_adj.to(self.device)
 
     def get_knn_adj_mat(self, mm_embeddings):
         context_norm = mm_embeddings.div(torch.norm(mm_embeddings, p=2, dim=-1, keepdim=True))
@@ -83,7 +84,7 @@ class FREEDOM(GeneralRecommender):
         adj_size = sim.size()
         del sim
         # construct sparse adj
-        indices0 = torch.arange(knn_ind.shape[0]).to(self.device)
+        indices0 = torch.arange(knn_ind.shape[0])
         indices0 = torch.unsqueeze(indices0, 1)
         indices0 = indices0.expand(-1, self.knn_k)
         indices = torch.stack((torch.flatten(indices0), torch.flatten(knn_ind)), 0)

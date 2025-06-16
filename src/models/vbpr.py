@@ -30,12 +30,12 @@ class VBPR(GeneralRecommender):
         # define layers and loss
         self.u_embedding = nn.Parameter(nn.init.xavier_uniform_(torch.empty(self.n_users, self.u_embedding_size * 2)))
         self.i_embedding = nn.Parameter(nn.init.xavier_uniform_(torch.empty(self.n_items, self.i_embedding_size)))
-        if self.v_feat is not None and self.t_feat is not None:
-            self.item_raw_features = torch.cat((self.t_feat, self.v_feat), -1)
-        elif self.v_feat is not None:
-            self.item_raw_features = self.v_feat
-        else:
-            self.item_raw_features = self.t_feat
+        # if self.v_feat is not None and self.t_feat is not None:
+        #     self.item_raw_features = torch.cat((self.t_feat, self.v_feat), -1)
+        # elif self.v_feat is not None:
+        #     self.item_raw_features = self.v_feat
+        # else:
+        self.item_raw_features = self.t_feat
 
         self.item_linear = nn.Linear(self.item_raw_features.shape[1], self.i_embedding_size)
         self.loss = BPRLoss()
@@ -104,3 +104,27 @@ class VBPR(GeneralRecommender):
         all_item_e = item_embeddings
         score = torch.matmul(user_e, all_item_e.transpose(0, 1))
         return score
+
+    def fixed_samples_sort_predict(self, interaction):
+        
+        user_tensor, item_tensor = self.forward()
+        
+        # 本batch内的userIDs
+        users = interaction[0]
+        userCount = len(users)
+        # 本batch内的user embeddings
+        current_user_tensor = user_tensor[users, :]
+        # 负样本，size为 len(users) * 30
+        neg_items = interaction[2]
+
+        score_matrix = torch.full((len(users), item_tensor.size(0)), -1e10).to(self.device)
+        
+        for i in range(userCount):
+            user_embedding = current_user_tensor[i]  # 第 i 个 userID embedding
+            neg_item_ids = neg_items[i]              # 第 i 个 userID 对应的 30 个负样本 item IDs
+            neg_item_embeddings = item_tensor[neg_item_ids]  # 取出对应的 item embeddings
+            # 计算 user_embedding 与每个负样本 item embedding 的内积
+            scores = torch.matmul(neg_item_embeddings, user_embedding)
+            # 将结果填入 matrix[i][neg_item_ids] 中
+            score_matrix[i, neg_item_ids] = scores.to(self.device)
+        return score_matrix

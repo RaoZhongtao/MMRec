@@ -19,7 +19,7 @@ import lmdb
 
 
 class RecDataset(object):
-    def __init__(self, config, df=None, negativeSamples=None):
+    def __init__(self, config, df=None, negativeSamples=None, item_population=None):
         self.config = config
         self.logger = getLogger()
 
@@ -33,10 +33,13 @@ class RecDataset(object):
         self.splitting_label = self.config['inter_splitting_label']
         self.negative_samples  = self.config['negative_sample']
         self.user_fixed_negative_sampling = self.config['user_fixed_negative_sampling']
+        self.eval_longtail = config['eval_longtail']
         self.negativeSamples = {}
+        self.item_population = {}
         if df is not None:
             self.df = df
             self.negativeSamples = negativeSamples
+            self.item_population = item_population
             return
         # if all files exists
         check_file_list = [self.config['inter_file_name']]
@@ -60,6 +63,7 @@ class RecDataset(object):
         self.load_inter_graph(config['inter_file_name'])
         self.item_num = int(max(self.df[self.iid_field].values)) + 1
         self.user_num = int(max(self.df[self.uid_field].values)) + 1
+        
 
     def parse_txt_file_to_list(self, file_path):
         userIDs = []
@@ -86,6 +90,10 @@ class RecDataset(object):
         self.df = pd.read_csv(inter_file, usecols=cols, sep=self.config['field_separator'])
         # print(f"debugging Recdataset self.df: ")
         print(self.df.head())
+        if self.eval_longtail:
+            self.item_population = Counter(self.df[self.iid_field].values)
+            self.item_population = dict(self.item_population)
+
         if not self.df.columns.isin(cols).all():
             raise ValueError('File {} lost some required columns.'.format(inter_file))
 
@@ -109,10 +117,10 @@ class RecDataset(object):
                 dfs[i].drop(dfs[i].index[dropped_inter], inplace=True)
 
         # wrap as RecDataset
-        full_ds = [self.copy(df, self.negativeSamples.copy()) for df in dfs]
+        full_ds = [self.copy(df, self.negativeSamples.copy(), self.item_population.copy()) for df in dfs]
         return full_ds
 
-    def copy(self, new_df, negativeSamples):
+    def copy(self, new_df, negativeSamples, item_population):
         """Given a new interaction feature, return a new :class:`Dataset` object,
                 whose interaction feature is updated with ``new_df``, and all the other attributes the same.
 
@@ -122,7 +130,7 @@ class RecDataset(object):
                 Returns:
                     :class:`~Dataset`: the new :class:`~Dataset` object, whose interaction feature has been updated.
                 """
-        nxt = RecDataset(self.config, new_df, negativeSamples)
+        nxt = RecDataset(self.config, new_df, negativeSamples, item_population)
 
         nxt.item_num = self.item_num
         nxt.user_num = self.user_num

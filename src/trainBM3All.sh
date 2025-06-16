@@ -1,19 +1,14 @@
-CUDA_VISIBLE_DEVICES=1 nohup python main.py \
---model BM3 \
---dataset beauty \
---mode train > test_time_train_BM3_beauty.log 2>&1 &
-
-CUDA_VISIBLE_DEVICES=2 python main.py \
---model BM3 \
---dataset clothing \
---mode train > train_BM3_clothing.log 2>&1 &
-
-CUDA_VISIBLE_DEVICES=3 python main.py \
---model BM3 \
---dataset sports \
---mode train > train_BM3_sports.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=0 nohup python main.py \
+# --model BM3 \
+# --dataset beauty \
+# --mode train > ../logs/train_BM3_beauty_128.log 2>&1 &
 
 CUDA_VISIBLE_DEVICES=1 python main.py \
 --model BM3 \
 --dataset toys \
---mode train > train_BM3_toys.log 2>&1 &
+--mode train > ../logs/train_BM3_toys_lvlmemb.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=2 nohup python main.py \
+# --model BM3 \
+# --dataset sports \
+# --mode train > ../logs/train_BM3_sports_128.log 2>&1 &

@@ -13,7 +13,7 @@ checkpoint_dir: 'saved'
 save_recommended_topk: True
 recommend_topk: 'recommend_topk/'
 
-embedding_size: 64
+embedding_size: 128
 weight_decay: 0.0
 req_training: True
 #embedding_size: 3780
@@ -21,11 +21,15 @@ req_training: True
 # training settings
 epochs: 1000
 stopping_step: 20
-train_batch_size: 256
+train_batch_size: 2048
 learner: adam
 learning_rate: 0.001
 learning_rate_scheduler: [1.0, 50]
 eval_step: 1
+
+eval_longtail: True
+ts_user: 9
+ts_item: 4
 
 training_neg_sample_num: 1
 use_neg_sampling: True

@@ -39,7 +39,7 @@ class AbstractDataLoader(object):
         self.config = config
         self.logger = getLogger()
         self.dataset = dataset
-        self.dataset_bk = self.dataset.copy(self.dataset.df, self.dataset.negativeSamples)
+        self.dataset_bk = self.dataset.copy(self.dataset.df, self.dataset.negativeSamples, self.dataset.item_population)
         # if config['model_type'] == ModelType.GENERAL:
         #     self.dataset.df.drop(self.dataset.ts_id, inplace=True, axis=1)
         # elif config['model_type'] == ModelType.SEQUENTIAL:
@@ -144,7 +144,7 @@ class TrainDataLoader(AbstractDataLoader):
         """
         # sort & random
         if self.shuffle:
-            self.dataset = self.dataset_bk.copy(self.dataset_bk.df, self.dataset_bk.negativeSamples)
+            self.dataset = self.dataset_bk.copy(self.dataset_bk.df, self.dataset_bk.negativeSamples, self.dataset_bk.item_population)
         self.all_items.sort()
         if self.use_full_sampling:
             self.all_uids.sort()
@@ -411,6 +411,9 @@ class EvalDataLoader(AbstractDataLoader):
 
     def get_eval_users(self):
         return self.eval_u.cpu()
+    
+    def get_item_population(self):
+        return self.dataset.item_population
     
     def _get_fixed_neg_sample(self):
         # 获取当前批次的用户ID

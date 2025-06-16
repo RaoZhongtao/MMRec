@@ -18,7 +18,7 @@ import os
 
 def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train'):
     # merge config dict
-    best_model_path = f"../checkpoints/{model}_{dataset}_best.pth"
+    best_model_path = f"../checkpoints/{model}_{dataset}__lvlmemb_best.pth"
     config = Config(model, dataset, config_dict, mg)
     init_logger(config)
     logger = getLogger()
@@ -48,7 +48,7 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
     val_metric = config['valid_metric'].lower()
     best_test_value = 0.0
     idx = best_test_idx = 0
-
+    best_valid_score = -1
     logger.info('\n\n=================================\n\n')
 
     if mode=='train':
@@ -77,7 +77,7 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
             logger.info(model)
 
             # trainer loading and initialization
-            trainer = get_trainer()(config, model, mg)
+            trainer = get_trainer()(config, model, best_valid_score, mg)
             # debug
             
             # model training

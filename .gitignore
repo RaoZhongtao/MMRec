@@ -11,7 +11,7 @@ __pycache__/
 /data/old_dataset/
 # C extensions
 *.so
-
+*.csv
 # Distribution / packaging
 .Python
 build/

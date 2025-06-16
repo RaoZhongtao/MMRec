@@ -56,7 +56,7 @@ class SMORE(GeneralRecommender):
             if os.path.exists(image_adj_file):
                 image_adj = torch.load(image_adj_file)
             else:
-                image_adj = build_sim(self.image_embedding.weight.detach())
+                image_adj = build_sim(self.image_embedding.weight.detach().cpu())
                 image_adj = build_knn_normalized_graph(image_adj, topk=self.image_knn_k, is_sparse=self.sparse,
                                                        norm_type='sym')
                 torch.save(image_adj, image_adj_file)
@@ -67,7 +67,7 @@ class SMORE(GeneralRecommender):
             if os.path.exists(text_adj_file):
                 text_adj = torch.load(text_adj_file)
             else:
-                text_adj = build_sim(self.text_embedding.weight.detach())
+                text_adj = build_sim(self.text_embedding.weight.detach().cpu())
                 text_adj = build_knn_normalized_graph(text_adj, topk=self.text_knn_k, is_sparse=self.sparse, norm_type='sym')
                 torch.save(text_adj, text_adj_file)
             self.text_original_adj = text_adj.cuda() 
@@ -344,3 +344,34 @@ class SMORE(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+    
+    def fixed_samples_sort_predict(self, interaction):
+        # 获取用户和物品的嵌入
+        user_embs, item_embs = self.forward(self.norm_adj)
+        
+        # 取出 batch 内的用户 IDs
+        user = interaction[0]
+        userCount = len(user)
+        
+        # 取出 batch 内的负样本 IDs (size: len(users) * 30)
+        neg_items = interaction[2]
+        
+        # 获取当前 batch 用户的嵌入
+        current_user_embs = user_embs[user]
+        
+        # 初始化评分矩阵，默认值设为很小 (-1e10) 以忽略未选取的物品
+        score_matrix = torch.full((userCount, item_embs.size(0)), -1e10, device=self.device)
+        
+        # 计算每个用户与其负样本的得分
+        for i in range(userCount):
+            user_embedding = current_user_embs[i]  # 取当前用户的嵌入
+            neg_item_ids = neg_items[i]  # 取当前用户的负样本 item IDs
+            neg_item_embs = item_embs[neg_item_ids]  # 取负样本的嵌入
+            
+            # 计算点积得分
+            scores = torch.matmul(neg_item_embs, user_embedding)
+            
+            # 填充评分矩阵
+            score_matrix[i, neg_item_ids] = scores
+        
+        return score_matrix

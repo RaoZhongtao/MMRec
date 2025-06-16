@@ -10,8 +10,8 @@ inter_file_name: 'sports.inter'
 negative_sample: 'negative_samples.txt'
 
 # name of features
-vision_feature_file: 'image_feat.npy'
-text_feature_file: 'text_feat.npy'
+vision_feature_file: 'image_feat_lvlm.npy'
+text_feature_file: 'text_feat_lvlm_3584.npy'
 user_graph_dict_file: 'user_graph_dict.npy'
 
 field_separator: "\t"

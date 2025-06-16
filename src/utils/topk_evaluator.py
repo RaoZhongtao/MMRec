@@ -31,6 +31,9 @@ class TopKEvaluator(object):
         self.metrics = config['metrics']
         self.topk = config['topk']
         self.save_recom_result = config['save_recommended_topk']
+        self.ts_user = config['ts_user']
+        self.ts_item = config['ts_item']
+        self.eval_longtail = config['eval_longtail']
         self._check_args()
 
     def collect(self, interaction, scores_tensor, full=False):
@@ -99,8 +102,59 @@ class TopKEvaluator(object):
             for k in self.topk:
                 key = '{}@{}'.format(metric, k)
                 metric_dict[key] = round(value[k - 1], 4)
+        
+        
+        if self.eval_longtail:
+            longtail_rec_matrix = []
+            item_population = eval_data.get_item_population()
+
+            longtail_target_item_count = 0
+            for item in pos_items:
+                if item_population[item.item()] < self.ts_item:
+                    longtail_target_item_count += 1
+            
+            for m, n in zip(pos_items, topk_index):
+                longtail_rec_matrix.append([True if ((item_population[i] < self.ts_item) and (i in m)) else False for i in n])
+            longtail_rec_matrix = np.asarray(longtail_rec_matrix)
+            result_list = self.caulculate_longtail_metrics(pos_len_list, longtail_rec_matrix, longtail_target_item_count)
+        for metric, value in zip(["HR", "NDCG"], result_list):
+            for k in self.topk:
+                key = 'Tail {}@{}'.format(metric, k)
+                metric_dict[key] = round(value[k - 1], 4)
         return metric_dict
 
+    def caulculate_longtail_metrics(self, pos_len_list, topk_index, longtail_target_item_count):
+        max_k = int(self.topk[-1])
+        longtail_hit_ratios = []
+        result_list = []
+        # Iterate over each k from 1 to max_k
+        for k in range(1, max_k + 1):
+            # Check if there's at least one hit among the top-k items for each user
+            hit = np.any(topk_index[:, :k], axis=1).astype(np.float)
+            # Calculate the mean of hits across all users for this k
+            hit_count = np.sum(hit)
+            longtail_hit_ratio = hit_count / longtail_target_item_count
+            longtail_hit_ratios.append(longtail_hit_ratio)
+            
+        len_rank = np.full_like(pos_len_list, topk_index.shape[1])
+        idcg_len = np.where(pos_len_list > len_rank, len_rank, pos_len_list)
+
+        iranks = np.zeros_like(topk_index, dtype=np.float)
+        iranks[:, :] = np.arange(1, topk_index.shape[1] + 1)
+        idcg = np.cumsum(1.0 / np.log2(iranks + 1), axis=1)
+        for row, idx in enumerate(idcg_len):
+            idcg[row, idx:] = idcg[row, idx - 1]
+
+        ranks = np.zeros_like(topk_index, dtype=np.float)
+        ranks[:, :] = np.arange(1, topk_index.shape[1] + 1)
+        dcg = 1.0 / np.log2(ranks + 1)
+        dcg = np.cumsum(np.where(topk_index, dcg, 0), axis=1)
+
+        result = dcg / idcg
+        longtail_ndcg_result = np.sum(result, axis=0) / longtail_target_item_count
+        result_list.append(np.array(longtail_hit_ratios))
+        result_list.append(np.array(longtail_ndcg_result))
+        return np.stack(result_list, axis=0)
     def _check_args(self):
         # Check metrics
         if isinstance(self.metrics, (str, list)):

@@ -59,7 +59,7 @@ class Trainer(AbstractTrainer):
 
     """
 
-    def __init__(self, config, model, mg=False):
+    def __init__(self, config, model, best_valid_score=-1, mg=False):
         super(Trainer, self).__init__(config, model)
 
         self.logger = getLogger()
@@ -86,7 +86,7 @@ class Trainer(AbstractTrainer):
         tmp_dd = {}
         for j, k in list(itertools.product(config['metrics'], config['topk'])):
             tmp_dd[f'{j.lower()}@{k}'] = 0.0
-        self.best_valid_score = -1
+        self.best_valid_score = best_valid_score
         self.best_valid_result = tmp_dd
         self.best_test_upon_valid = tmp_dd
         self.train_loss_dict = dict()
