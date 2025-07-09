@@ -10,8 +10,16 @@ inter_file_name: 'sports.inter'
 negative_sample: 'negative_samples.txt'
 
 # name of features
-vision_feature_file: 'image_feat_lvlm.npy'
-text_feature_file: 'text_feat_lvlm_3584.npy'
+# vision_feature_file: 'qwen_image_feat_1536.npy'
+# text_feature_file: 'qwen_text_feat_1536.npy'
+# vision_feature_file: 'image_feat.npy'
+# text_feature_file: 'text_feat.npy'
+# vision_feature_file: 'image_feat_lvlm.npy'
+# text_feature_file: 'text_feat_lvlm.npy'
+# vision_feature_file: 'qwen_image_feat_0_shot.npy'
+# text_feature_file: 'qwen_text_feat_0_shot.npy'
+vision_feature_file: 'qwen_image_feat_768.npy'
+text_feature_file: 'qwen_text_feat_768.npy'
 user_graph_dict_file: 'user_graph_dict.npy'
 
 field_separator: "\t"

@@ -59,7 +59,7 @@ class Trainer(AbstractTrainer):
 
     """
 
-    def __init__(self, config, model, best_valid_score=-1, mg=False):
+    def __init__(self, config, model, best_valid_score=-1, mg=False, test=False):
         super(Trainer, self).__init__(config, model)
 
         self.logger = getLogger()
@@ -90,13 +90,16 @@ class Trainer(AbstractTrainer):
         self.best_valid_result = tmp_dd
         self.best_test_upon_valid = tmp_dd
         self.train_loss_dict = dict()
-        self.optimizer = self._build_optimizer()
+        
 
         #fac = lambda epoch: 0.96 ** (epoch / 50)
-        lr_scheduler = config['learning_rate_scheduler']        # check zero?
-        fac = lambda epoch: lr_scheduler[0] ** (epoch / lr_scheduler[1])
-        scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=fac)
-        self.lr_scheduler = scheduler
+        if not test:
+            self.optimizer = self._build_optimizer()
+            lr_scheduler = config['learning_rate_scheduler']        # check zero?
+            fac = lambda epoch: lr_scheduler[0] ** (epoch / lr_scheduler[1])
+        
+            scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=fac)
+            self.lr_scheduler = scheduler
 
         self.eval_type = config['eval_type']
         self.evaluator = TopKEvaluator(config)
@@ -150,15 +153,16 @@ class Trainer(AbstractTrainer):
             multiple parts and the model return these multiple parts loss instead of the sum of loss, It will return a
             tuple which includes the sum of loss in each part.
         """
-        
-        
         if not self.req_training:
             return 0.0, []
         self.model.train()
         loss_func = loss_func or self.model.calculate_loss
         total_loss = None
         loss_batches = []
+        from time import time  # 埋点用
+        batch_start_time = time()  # 埋点：epoch开始
         for batch_idx, interaction in enumerate(train_data):
+            step_start_time = time()  # 埋点：step开始
             self.optimizer.zero_grad()
             # print(f"\033[91m  debugging  train_epoch batch_idx: {batch_idx} interaction.shape: {interaction.shape} interaction: {interaction}\033[0m]]")
             second_inter = interaction.clone()
@@ -193,16 +197,21 @@ class Trainer(AbstractTrainer):
                     return loss, torch.tensor(0.0)
                 second_loss = -1 * self.alpha2 * loss
                 second_loss.backward()
-            else:
+            else: 
                 loss.backward()
                 
             if self.clip_grad_norm:
                 clip_grad_norm_(self.model.parameters(), **self.clip_grad_norm)
             self.optimizer.step()
             loss_batches.append(loss.detach())
+            # 埋点：step结束
+            step_end_time = time()
+            # self.logger.info(f"[Time] Epoch {epoch_idx} Step {batch_idx} duration: {step_end_time - step_start_time:.4f} seconds")
             # for test
             #if batch_idx == 0:
             #    break
+        batch_end_time = time()  # 埋点：epoch开始
+        # self.logger.info(f"[Time] Epoch {epoch_idx} finished, duration: {batch_end_time - batch_start_time:.4f} seconds")
         return total_loss, loss_batches
 
     def _valid_epoch(self, valid_data):
@@ -248,9 +257,11 @@ class Trainer(AbstractTrainer):
         """
         train_accumulated_time = 0.0
         val_accumulated_time = 0.0
+        from time import time  # 埋点用
         for epoch_idx in range(self.start_epoch, self.epochs):
-            # train
+            # 埋点：epoch开始
             epoch_training_start_time = time()
+            # self.logger.info(f"[Time] Epoch {epoch_idx} started at {epoch_training_start_time:.2f}")
             self.model.pre_epoch_processing()
             train_loss, _ = self._train_epoch(train_data, epoch_idx)
             if torch.is_tensor(train_loss):
@@ -263,6 +274,8 @@ class Trainer(AbstractTrainer):
             self.train_loss_dict[epoch_idx] = sum(train_loss) if isinstance(train_loss, tuple) else train_loss
             training_end_time = time()
             train_accumulated_time += training_end_time - epoch_training_start_time
+            # 埋点：epoch结束
+            # self.logger.info(f"[Time] Epoch {epoch_idx} finished at {training_end_time:.2f}, duration: {training_end_time - epoch_training_start_time:.2f} seconds")
             train_loss_output = \
                 self._generate_train_loss_output(epoch_idx, train_accumulated_time, epoch_training_start_time, training_end_time, train_loss)
             post_info = self.model.post_epoch_processing()
@@ -325,18 +338,26 @@ class Trainer(AbstractTrainer):
         user_fixed_negative_sampling = self.config['user_fixed_negative_sampling']
         # batch full users
         batch_matrix_list = []
+        start_time = time()
+        user_count = 0
         for batch_idx, batched_data in enumerate(eval_data):
             # predict: interaction without item ids
+            users = batched_data[0]
+            user_count += len(users)
             if user_fixed_negative_sampling:
                 scores = self.model.fixed_samples_sort_predict(batched_data)
             else:
                 scores = self.model.full_sort_predict(batched_data)
+            
             masked_items = batched_data[1]
             # mask out pos items
             scores[masked_items[0], masked_items[1]] = -1e10
             # rank and get top-k
             _, topk_index = torch.topk(scores, max(self.config['topk']), dim=-1)  # nusers x topk
             batch_matrix_list.append(topk_index)
+        end_time = time()
+        time_per_user = (end_time - start_time) / user_count
+        self.logger.info(f'Evaluation time cose: {end_time - start_time:.2f} seconds, time per user: {time_per_user:.7f} seconds')
         return self.evaluator.evaluate(batch_matrix_list, eval_data, is_test=is_test, idx=idx)
 
     def plot_train_loss(self, show=True, save_path=None):

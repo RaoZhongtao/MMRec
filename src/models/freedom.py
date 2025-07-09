@@ -13,7 +13,7 @@ import scipy.sparse as sp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from logging import getLogger
 from common.abstract_recommender import GeneralRecommender
 from common.loss import BPRLoss, EmbLoss, L2Loss
 from utils.utils import build_sim, compute_normalized_laplacian
@@ -52,7 +52,7 @@ class FREEDOM(GeneralRecommender):
         nn.init.xavier_uniform_(self.item_id_embedding.weight)
 
         dataset_path = os.path.abspath(config['data_path'] + config['dataset'])
-        mm_adj_file = os.path.join(dataset_path, 'mm_adj_freedomdsp_{}_{}.pt'.format(self.knn_k, int(10*self.mm_image_weight)))
+        # mm_adj_file = os.path.join(dataset_path, 'mm_adj_freedomdsp_{}_{}.pt'.format(self.knn_k, int(10*self.mm_image_weight)))
 
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
@@ -61,21 +61,26 @@ class FREEDOM(GeneralRecommender):
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
             self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim)
 
-        if os.path.exists(mm_adj_file):
-            self.mm_adj = torch.load(mm_adj_file)
-        else:
-            if self.v_feat is not None:
-                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach().cpu())
-                self.mm_adj = image_adj
-            if self.t_feat is not None:
-                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach().cpu())
-                self.mm_adj = text_adj
-            if self.v_feat is not None and self.t_feat is not None:
-                self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
-                del text_adj
-                del image_adj
-            torch.save(self.mm_adj, mm_adj_file)
+        # if os.path.exists(mm_adj_file):
+        #     self.mm_adj = torch.load(mm_adj_file)
+        # else:
+        if self.v_feat is not None:
+            indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach().cpu())
+            self.mm_adj = image_adj
+        if self.t_feat is not None:
+            indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach().cpu())
+            self.mm_adj = text_adj
+        if self.v_feat is not None and self.t_feat is not None:
+            self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
+            del text_adj
+            del image_adj
+        # torch.save(self.mm_adj, mm_adj_file)
         self.mm_adj = self.mm_adj.to(self.device)
+        logger = getLogger()
+    
+        logger.info(f"debugging image_embedding shape: {self.image_embedding.weight.shape}")
+        logger.info(f"debugging text_embedding shape: {self.text_embedding.weight.shape}")
+
 
     def get_knn_adj_mat(self, mm_embeddings):
         context_norm = mm_embeddings.div(torch.norm(mm_embeddings, p=2, dim=-1, keepdim=True))

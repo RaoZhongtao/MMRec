@@ -53,23 +53,23 @@ class SMORE(GeneralRecommender):
 
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
-            if os.path.exists(image_adj_file):
-                image_adj = torch.load(image_adj_file)
-            else:
-                image_adj = build_sim(self.image_embedding.weight.detach().cpu())
-                image_adj = build_knn_normalized_graph(image_adj, topk=self.image_knn_k, is_sparse=self.sparse,
-                                                       norm_type='sym')
-                torch.save(image_adj, image_adj_file)
+            # if os.path.exists(image_adj_file):
+            #     image_adj = torch.load(image_adj_file)
+            # else:
+            image_adj = build_sim(self.image_embedding.weight.detach().cpu())
+            image_adj = build_knn_normalized_graph(image_adj, topk=self.image_knn_k, is_sparse=self.sparse,
+                                                    norm_type='sym')
+                # torch.save(image_adj, image_adj_file)
             self.image_original_adj = image_adj.cuda()
 
         if self.t_feat is not None:
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
-            if os.path.exists(text_adj_file):
-                text_adj = torch.load(text_adj_file)
-            else:
-                text_adj = build_sim(self.text_embedding.weight.detach().cpu())
-                text_adj = build_knn_normalized_graph(text_adj, topk=self.text_knn_k, is_sparse=self.sparse, norm_type='sym')
-                torch.save(text_adj, text_adj_file)
+            # if os.path.exists(text_adj_file):
+            #     text_adj = torch.load(text_adj_file)
+            # else:
+            text_adj = build_sim(self.text_embedding.weight.detach().cpu())
+            text_adj = build_knn_normalized_graph(text_adj, topk=self.text_knn_k, is_sparse=self.sparse, norm_type='sym')
+                # torch.save(text_adj, text_adj_file)
             self.text_original_adj = text_adj.cuda() 
 
         self.fusion_adj = self.max_pool_fusion()

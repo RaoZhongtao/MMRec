@@ -306,6 +306,8 @@ class SLMRec(GeneralRecommender):
 
     def full_sort_predict(self, interaction, candidate_items=None):
         users = interaction[0]
+        if self.all_users is None or self.all_items is None:
+            self.all_users, self.all_items = self.compute()
         users_emb = self.all_users[users]
         if candidate_items is None:
             items_emb = self.all_items
@@ -316,6 +318,8 @@ class SLMRec(GeneralRecommender):
 
     def fixed_samples_sort_predict(self, interaction):
         # 获取用户和物品的嵌入
+        if self.all_users is None or self.all_items is None:
+            self.all_users, self.all_items = self.compute()
         user_embs = self.all_users
         item_embs = self.all_items
         
