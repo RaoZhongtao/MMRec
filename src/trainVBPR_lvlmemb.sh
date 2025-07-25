@@ -1,16 +1,29 @@
 CUDA_VISIBLE_DEVICES=0 nohup python main.py \
 --model VBPR \
 --dataset beauty \
---mode train > ../logs/train_VBPR_beauty_lvlmemb.log 2>&1 &
+--extractor qwen \
+--moe_num 4 \
+--mode train > ../logs/VBPR_efficiency_beauty_qwen.log 2>&1 &
 
 
-CUDA_VISIBLE_DEVICES=3 nohup python main.py \
+CUDA_VISIBLE_DEVICES=0 nohup python main.py \
 --model VBPR \
 --dataset sports \
---mode train > ../logs/train_VBPR_sports_lvlmemb.log 2>&1 &
+--extractor default \
+--moe_num 4 \
+--mode train > ../logs/VBPR_efficiency_sports.log 2>&1 &
 
-CUDA_VISIBLE_DEVICES=4 nohup python main.py \
+CUDA_VISIBLE_DEVICES=0 nohup python main.py \
 --model VBPR \
 --dataset toys \
---mode train > ../logs/train_VBPR_toys_lvlmemb.log 2>&1 &
+--extractor qwen_image \
+--moe_num 4 \
+--mode train > ../logs/modality_replacement_VBPR_toys_moe4_qwen_image.log 2>&1 &
+
+CUDA_VISIBLE_DEVICES=0 nohup python main.py \
+--model VBPR \
+--dataset toys \
+--extractor qwen_text \
+--moe_num 4 \
+--mode train > ../logs/modality_replacement_VBPR_toys_moe4_qwen_text.log 2>&1 &
 

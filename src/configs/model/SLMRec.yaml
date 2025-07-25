@@ -4,8 +4,8 @@ reg: [0.0001, 0.01]
 ssl_task: 'FAC'
 learning_rate: [0.0001, 0.01]
 weight_decay: 1e-4
-ssl_alpha: [0.5, 0.1, 1.0]
-ssl_temp: [1.0, 0.5]
+ssl_alpha: [1.0, 0.5, 0.1]
+ssl_temp: [0.5, 1.0]
 dropout_rate: 0.3
 mm_fusion_mode: 'concat'
 temp: 0.2
@@ -16,3 +16,4 @@ hyper_parameters: ["learning_rate", "ssl_temp", "ssl_alpha", "reg"]
 
 #sports ['seed', 'learning_rate', 'ssl_temp', 'ssl_alpha', 'reg']=(999, 0.0001, 0.5, 0.5, 0.0001),
 #beauty ['seed', 'learning_rate', 'ssl_temp', 'ssl_alpha', 'reg']=(999, 0.0001, 0.5, 1.0, 0.0001)
+#toys ['seed', 'learning_rate', 'ssl_temp', 'ssl_alpha', 'reg']=(999, 0.0001, 0.5, 1.0, 0.0001)

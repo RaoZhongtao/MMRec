@@ -14,12 +14,26 @@ from utils.configurator import Config
 from utils.utils import init_seed, get_model, get_trainer, dict2str
 import platform
 import os
+import wandb
 
+def initWandb(model, dataset, extractor, config, hyper_idx, moe_num):
+    wandb_run_name = f"{model}_{dataset}_{extractor}_moe{moe_num}_{hyper_idx}"
+    wandb_config = {
+        "project": "MMRec", 
+        "entity": "MultimodelRec",
+        "config": config,
+        "name": wandb_run_name
+    }
+    
+    wandb.init(**wandb_config)
 
-def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train'):
+def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False, mode='train', extractor='default', moe_num=0):
     # merge config dict
     best_model_path = f"../checkpoints/{model}_{dataset}_best.pth"
-    config = Config(model, dataset, config_dict, mg)
+    config = Config(model, dataset, config_dict, mg, extractor, moe_num)
+    
+
+    
     init_logger(config)
     logger = getLogger()
     # print config infor
@@ -62,6 +76,9 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
         combinators = list(product(*hyper_ls))
         total_loops = len(combinators)
         for hyper_tuple in combinators:
+            
+            initWandb(model, dataset, extractor, config, idx, moe_num)
+            
             # random seed reset
             for j, k in zip(config['hyper_parameters'], hyper_tuple):
                 config[j] = k
@@ -88,13 +105,30 @@ def quick_start(model, dataset, config_dict, ckpt_dir, save_model=True, mg=False
             if best_test_upon_valid[val_metric] > best_test_value:
                 best_test_value = best_test_upon_valid[val_metric]
                 best_test_idx = idx
-            idx += 1
+            
 
             logger.info('best valid result: {}'.format(dict2str(best_valid_result)))
             logger.info('test result: {}'.format(dict2str(best_test_upon_valid)))
             logger.info('████Current BEST████:\nParameters: {}={},\n'
                         'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
                 hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
+            
+            print(f"best_test_upon_valid: {best_test_upon_valid}")
+            try:
+                wandb.log({
+                    "H@10": best_test_upon_valid["recall@10"],
+                    "H@20": best_test_upon_valid["recall@20"],
+                    "N@10": best_test_upon_valid["ndcg@10"],
+                    "N@20": best_test_upon_valid["ndcg@20"],
+                    "Tail H@10": best_test_upon_valid["Tail HR@10"],
+                    "Tail H@20": best_test_upon_valid["Tail HR@20"],
+                    "Tail N@10": best_test_upon_valid["Tail NDCG@10"],
+                    "Tail N@20": best_test_upon_valid["Tail NDCG@20"],
+                })
+            except Exception as e:
+                logger.error(f"KeyError: {e} not found in best_test_upon_valid: {best_test_upon_valid}")
+                
+            idx += 1
             #########
     else:
         model = get_model(config['model'])(config, train_data).to(config['device'])

@@ -18,7 +18,7 @@ from logging import getLogger
 
 from utils.utils import get_local_time, early_stopping, dict2str
 from utils.topk_evaluator import TopKEvaluator
-
+import wandb
 
 class AbstractTrainer(object):
     r"""Trainer Class is used to manage the training and evaluation processes of recommender system models.
@@ -210,6 +210,10 @@ class Trainer(AbstractTrainer):
             # for test
             #if batch_idx == 0:
             #    break
+            wandb.log({
+                "loss": loss,
+                "step": batch_idx + 1,
+            })
         batch_end_time = time()  # 埋点：epoch开始
         # self.logger.info(f"[Time] Epoch {epoch_idx} finished, duration: {batch_end_time - batch_start_time:.4f} seconds")
         return total_loss, loss_batches
@@ -319,6 +323,18 @@ class Trainer(AbstractTrainer):
                         if verbose:
                             self.logger.info(f"Model checkpoint saved at {best_checkpoint_path}")
 
+                wandb.log({
+                    "Val H@10": valid_result["recall@10"],
+                    "Val H@20": valid_result["recall@20"],
+                    "Val N@10": valid_result["ndcg@10"],
+                    "Val N@20": valid_result["ndcg@20"],
+                    "Val Tail H@10": valid_result["Tail HR@10"],
+                    "Val Tail H@20": valid_result["Tail HR@20"],
+                    "Val Tail N@10": valid_result["Tail NDCG@10"],
+                    "Val Tail N@20": valid_result["Tail NDCG@20"],
+                })
+                
+                
                 if stop_flag:
                     stop_output = '+++++Finished training, best eval result in epoch %d' % \
                                   (epoch_idx - self.cur_step * self.eval_step)

@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from common.abstract_recommender import GeneralRecommender
-from sparsesvd import sparsesvd
+import scipy.sparse.linalg
 
 
 class PGL(GeneralRecommender):
@@ -50,7 +50,7 @@ class PGL(GeneralRecommender):
         nn.init.xavier_uniform_(self.user_text.weight)
 
         dataset_path = os.path.abspath(config['data_path'] + config['dataset'])
-        mm_adj_file = os.path.join(dataset_path,'mm_adj_freedomdsp_{}_{}.pt'.format(self.knn_k, int(10 * self.mm_image_weight)))
+        # mm_adj_file = os.path.join(dataset_path,'mm_adj_freedomdsp_{}_{}.pt'.format(self.knn_k, int(10 * self.mm_image_weight)))
 
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
@@ -59,20 +59,22 @@ class PGL(GeneralRecommender):
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
             self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim)
 
-        if os.path.exists(mm_adj_file):
-            self.mm_adj = torch.load(mm_adj_file)
-        else:
-            if self.v_feat is not None:
-                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach())
-                self.mm_adj = image_adj
-            if self.t_feat is not None:
-                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach())
-                self.mm_adj = text_adj
-            if self.v_feat is not None and self.t_feat is not None:
-                self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
-                del text_adj
-                del image_adj
-            torch.save(self.mm_adj, mm_adj_file)
+        # if os.path.exists(mm_adj_file):
+        #     self.mm_adj = torch.load(mm_adj_file)
+        # else:
+
+        if self.v_feat is not None:
+            indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach().cpu())
+            self.mm_adj = image_adj
+        if self.t_feat is not None:
+            indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach().cpu())
+            self.mm_adj = text_adj
+        if self.v_feat is not None and self.t_feat is not None:
+            self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
+            del text_adj
+            del image_adj
+            # torch.save(self.mm_adj, mm_adj_file)
+        self.mm_adj = self.mm_adj.to(self.device)
         self.dropoutf = nn.Dropout(config['dropout'])
 
     def sparse_mx_to_torch_sparse_tensor(self, sparse_mx):
@@ -90,7 +92,7 @@ class PGL(GeneralRecommender):
         adj_size = sim.size()
         del sim
         # construct sparse adj
-        indices0 = torch.arange(knn_ind.shape[0]).to(self.device)
+        indices0 = torch.arange(knn_ind.shape[0]).to(mm_embeddings.device)
         indices0 = torch.unsqueeze(indices0, 1)
         indices0 = indices0.expand(-1, self.knn_k)
         indices = torch.stack((torch.flatten(indices0), torch.flatten(knn_ind)), 0)
@@ -137,7 +139,8 @@ class PGL(GeneralRecommender):
 
     def global_subgraph_extraction(self, adj):
         norm_adj = adj.tocsc()
-        ut, s, vt = sparsesvd(norm_adj, self.embedding_dim)
+        # 用 scipy.sparse.linalg.svds 替代 sparsesvd
+        u, s, vt = scipy.sparse.linalg.svds(norm_adj, k=self.embedding_dim)
 
         # Get the top and bottom 25% of singular values
         num_top_bottom = int(0.25 * self.embedding_dim)
@@ -149,7 +152,7 @@ class PGL(GeneralRecommender):
 
         # Construct the sparse matrix from the product of singular values
         product_matrix = np.diag(product_singular_values)
-        product_sparse_matrix = ut.T[:, :num_top_bottom] @ product_matrix @ vt[:num_top_bottom, :]
+        product_sparse_matrix = u[:, :num_top_bottom].T @ product_matrix @ vt[:num_top_bottom, :]
         product_sparse_matrix = sp.csr_matrix(product_sparse_matrix * (abs(product_sparse_matrix) >= 1e-3))
         return product_sparse_matrix
 
@@ -267,3 +270,27 @@ class PGL(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+
+    def fixed_samples_sort_predict(self, interaction):
+        """
+        仅对每个用户的负采样物品计算分数，返回评分矩阵（未采样物品为极小值）。
+        """
+        user = interaction[0]
+        neg_items = interaction[2]  # shape: [batch_size, neg_num]
+        user_count = len(user)
+
+        # 获取全量 user/item embedding
+        user_embs, item_embs = self.forward(self.norm_adj)
+        current_user_embs = user_embs[user]
+
+        # 初始化评分矩阵，未采样物品为极小值
+        score_matrix = torch.full((user_count, item_embs.size(0)), -1e10, device=self.device)
+
+        for i in range(user_count):
+            user_emb = current_user_embs[i]
+            neg_item_ids = neg_items[i]
+            neg_item_embs = item_embs[neg_item_ids]
+            scores = torch.matmul(neg_item_embs, user_emb)
+            score_matrix[i, neg_item_ids] = scores
+
+        return score_matrix

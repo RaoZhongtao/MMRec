@@ -8,12 +8,16 @@ inter_file_name: 'beauty.inter'
 negative_sample: 'negative_samples.txt'
 
 # name of features
+vision_feature_file: 'image_feat.npy'
+text_feature_file: 'text_feat.npy'
 # vision_feature_file: 'image_feat_lvlm.npy'
 # text_feature_file: 'text_feat_lvlm_3584.npy'
 # vision_feature_file: 'llama_image_feat.npy'
 # text_feature_file: 'llama_text_feat.npy'
-vision_feature_file: 'clip_image_feat_768.npy'
-text_feature_file: 'clip_text_feat_768.npy'
+# vision_feature_file: 'clip_image_feat_768.npy'
+# text_feature_file: 'clip_text_feat_768.npy'
+# vision_feature_file: 'qwen_image_feat_768.npy'
+# text_feature_file: 'qwen_text_feat_768.npy'
 user_graph_dict_file: 'user_graph_dict.npy'
 
 

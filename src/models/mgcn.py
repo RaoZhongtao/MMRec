@@ -49,23 +49,23 @@ class MGCN(GeneralRecommender):
 
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
-            if os.path.exists(image_adj_file):
-                image_adj = torch.load(image_adj_file)
-            else:
-                image_adj = build_sim(self.image_embedding.weight.detach())
-                image_adj = build_knn_normalized_graph(image_adj, topk=self.knn_k, is_sparse=self.sparse,
-                                                       norm_type='sym')
-                torch.save(image_adj, image_adj_file)
+            # if os.path.exists(image_adj_file):
+            #     image_adj = torch.load(image_adj_file)
+            # else:
+            image_adj = build_sim(self.image_embedding.weight.detach().cpu())
+            image_adj = build_knn_normalized_graph(image_adj, topk=self.knn_k, is_sparse=self.sparse,
+                                                    norm_type='sym')
+            # torch.save(image_adj, image_adj_file)
             self.image_original_adj = image_adj.cuda()
 
         if self.t_feat is not None:
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
-            if os.path.exists(text_adj_file):
-                text_adj = torch.load(text_adj_file)
-            else:
-                text_adj = build_sim(self.text_embedding.weight.detach())
-                text_adj = build_knn_normalized_graph(text_adj, topk=self.knn_k, is_sparse=self.sparse, norm_type='sym')
-                torch.save(text_adj, text_adj_file)
+            # if os.path.exists(text_adj_file):
+            #     text_adj = torch.load(text_adj_file)
+            # else:
+            text_adj = build_sim(self.text_embedding.weight.detach().cpu())
+            text_adj = build_knn_normalized_graph(text_adj, topk=self.knn_k, is_sparse=self.sparse, norm_type='sym')
+            # torch.save(text_adj, text_adj_file)
             self.text_original_adj = text_adj.cuda()
 
         if self.v_feat is not None:
@@ -261,3 +261,27 @@ class MGCN(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+    
+    def fixed_samples_sort_predict(self, interaction):
+        
+        user_tensor, item_tensor = self.forward(self.norm_adj)
+        
+        # 本batch内的userIDs
+        users = interaction[0]
+        userCount = len(users)
+        # 本batch内的user embeddings
+        current_user_tensor = user_tensor[users, :]
+        # 负样本，size为 len(users) * 30
+        neg_items = interaction[2]
+
+        score_matrix = torch.full((len(users), item_tensor.size(0)), -1e10).to(self.device)
+        
+        for i in range(userCount):
+            user_embedding = current_user_tensor[i]  # 第 i 个 userID embedding
+            neg_item_ids = neg_items[i]              # 第 i 个 userID 对应的 30 个负样本 item IDs
+            neg_item_embeddings = item_tensor[neg_item_ids]  # 取出对应的 item embeddings
+            # 计算 user_embedding 与每个负样本 item embedding 的内积
+            scores = torch.matmul(neg_item_embeddings, user_embedding)
+            # 将结果填入 matrix[i][neg_item_ids] 中
+            score_matrix[i, neg_item_ids] = scores.to(self.device)
+        return score_matrix

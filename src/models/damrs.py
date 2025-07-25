@@ -302,6 +302,33 @@ class DAMRS(GeneralRecommender):
         score = torch.matmul(user_e, all_item_e.transpose(0, 1))
         return score
 
+    def fixed_samples_sort_predict(self, interaction):
+        """
+        仅对每个用户的负采样物品计算分数，返回评分矩阵（未采样物品为极小值）。
+        """
+        user_embeddings, item_embeddings, h_t, h_v, h_s = self.forward()
+        user = interaction[0]
+        user_count = len(user)
+        neg_items = interaction[2]  # shape: [batch_size, neg_num]
+        current_user_embs = user_embeddings[user]
+
+        # 融合多模态特征
+        i_embedding = (h_v + h_t + h_s) / 3.0
+        all_item_embs = item_embeddings + i_embedding
+
+        # 初始化评分矩阵，未采样物品为极小值
+        score_matrix = torch.full((user_count, all_item_embs.size(0)), -1e10, device=self.device)
+
+        for i in range(user_count):
+            user_emb = current_user_embs[i]
+            neg_item_ids = neg_items[i]
+            neg_item_embs = all_item_embs[neg_item_ids]
+            scores = torch.matmul(neg_item_embs, user_emb)
+            score_matrix[i, neg_item_ids] = scores
+
+        return score_matrix
+
+
     def get_weight_modal(self, users, pos_items, neg_items, user_embeddings, h_t, h_v, h_s):
         u_g_embeddings = user_embeddings[users]
 

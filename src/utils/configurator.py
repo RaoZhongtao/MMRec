@@ -43,7 +43,7 @@ class Config(object):
     Finally the learning_rate is equal to 0.02.
     """
 
-    def __init__(self, model=None, dataset=None, config_dict=None, mg=False):
+    def __init__(self, model=None, dataset=None, config_dict=None, mg=False, extractor='default', moe_num=0):
         """
         Args:
             model (str/AbstractRecommender): the model name or the model class, default is None, if it is None, config
@@ -62,6 +62,7 @@ class Config(object):
         self.final_config_dict = self._load_dataset_model_config(config_dict, mg)
         # config in cmd and main.py are latest
         self.final_config_dict.update(config_dict)
+        self.final_config_dict = self._get_feat_file(self.final_config_dict, extractor, moe_num)
         self._set_default_parameters()
         self._init_device()
 
@@ -89,6 +90,28 @@ class Config(object):
         file_config_dict['hyper_parameters'] = hyper_parameters
         return file_config_dict
 
+    def _get_feat_file(self, file_config_dict, extractor, moe_num):
+
+        if extractor == 'default':
+            return file_config_dict
+        elif extractor == 'qwen':
+            file_config_dict['vision_feature_file'] = file_config_dict['vision_feature_file'].replace('image_feat', f'qwen_image_feat_moe{moe_num}_768')
+            file_config_dict['text_feature_file'] = file_config_dict['text_feature_file'].replace('text_feat', f'qwen_text_feat_moe{moe_num}_768')
+            
+        elif extractor == 'llama':
+            file_config_dict['vision_feature_file'] = file_config_dict['vision_feature_file'].replace('image_feat', f'llama_image_feat_moe{moe_num}_768')
+            file_config_dict['text_feature_file'] = file_config_dict['text_feature_file'].replace('text_feat', f'llama_text_feat_moe{moe_num}_768')
+        elif extractor == 'clip':
+            file_config_dict['vision_feature_file'] = file_config_dict['vision_feature_file'].replace('image_feat', 'clip_image_feat_768')
+            file_config_dict['text_feature_file'] = file_config_dict['text_feature_file'].replace('text_feat', 'clip_text_feat_768')
+        elif extractor == 'qwen_image':
+            file_config_dict['vision_feature_file'] = file_config_dict['vision_feature_file'].replace('image_feat', f'qwen_image_feat_moe{moe_num}_768')
+        elif extractor == 'qwen_text':
+            file_config_dict['text_feature_file'] = file_config_dict['text_feature_file'].replace('text_feat', f'qwen_text_feat_moe{moe_num}_768')
+        else:
+            raise ValueError(f"Unknown extractor type: {extractor}")
+        return file_config_dict
+    
     def _build_yaml_loader(self):
         loader = yaml.FullLoader
         loader.add_implicit_resolver(

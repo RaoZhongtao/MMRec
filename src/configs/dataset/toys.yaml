@@ -11,11 +11,11 @@ negative_sample: 'negative_samples.txt'
 # vision_feature_file: 'image_feat_lvlm.npy'
 # text_feature_file: 'text_feat_lvlm.npy'
 
-# vision_feature_file: 'image_feat.npy'
-# text_feature_file: 'text_feat.npy'
+vision_feature_file: 'image_feat.npy'
+text_feature_file: 'text_feat.npy'
 
-vision_feature_file: 'llama_image_feat.npy'
-text_feature_file: 'llama_text_feat.npy'
+# vision_feature_file: 'llama_image_feat.npy'
+# text_feature_file: 'llama_text_feat.npy'
 
 
 user_graph_dict_file: 'user_graph_dict.npy'

@@ -21,12 +21,14 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', '-d', type=str, default='baby', help='name of datasets')
     parser.add_argument('--ckpt_dir', type=str, default='./checkpoints/')
     parser.add_argument('--mode', default='train', choices=['train', 'test'], type=str)
+    parser.add_argument('--extractor', default='default', choices=['default', 'qwen', 'llama', 'clip', 'qwen_image', 'qwen_text'], type=str)
+    parser.add_argument('--moe_num', type=int, default=0)
     
     config_dict = {
         'gpu_id': 0,
     }
 
     args, _ = parser.parse_known_args()
-    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, ckpt_dir=args.ckpt_dir, save_model=True, mode=args.mode)
+    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, ckpt_dir=args.ckpt_dir, save_model=True, mode=args.mode, extractor=args.extractor, moe_num=args.moe_num)
 
 
