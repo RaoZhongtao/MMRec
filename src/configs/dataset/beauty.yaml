@@ -19,6 +19,7 @@ text_feature_file: 'text_feat.npy'
 # vision_feature_file: 'qwen_image_feat_768.npy'
 # text_feature_file: 'qwen_text_feat_768.npy'
 user_graph_dict_file: 'user_graph_dict.npy'
-
+ts_user: 9
+ts_item: 4
 
 field_separator: "\t"

@@ -28,8 +28,7 @@ learning_rate_scheduler: [1.0, 50]
 eval_step: 1
 
 eval_longtail: True
-ts_user: 9
-ts_item: 4
+
 
 training_neg_sample_num: 1
 use_neg_sampling: True
